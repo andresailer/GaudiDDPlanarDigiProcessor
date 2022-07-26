@@ -32,6 +32,12 @@ function(set_test_env _testname)
     )
 endfunction()
 
+FIND_PACKAGE( GSL REQUIRED ) 
+INCLUDE_DIRECTORIES( SYSTEM ${GSL_INCLUDE_DIRS} )
+LINK_LIBRARIES( ${GSL_LIBRARIES} )
+ADD_DEFINITIONS( ${GSL_DEFINITIONS} )
+
+
 add_test(NAME CreateExampleEventData
                WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
                COMMAND k4run k4ProjectTemplate/options/createExampleEventData.py)

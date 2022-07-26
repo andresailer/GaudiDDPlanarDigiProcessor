@@ -6,7 +6,6 @@ DECLARE_COMPONENT(HelloWorldAlg)
 HelloWorldAlg::HelloWorldAlg(const std::string& aName, ISvcLocator* aSvcLoc) : GaudiAlgorithm(aName, aSvcLoc) {}
 
 HelloWorldAlg::~HelloWorldAlg() {}
-
 StatusCode HelloWorldAlg::initialize() {
   if (GaudiAlgorithm::initialize().isFailure()) {
     return StatusCode::FAILURE;
