@@ -71,15 +71,13 @@ enum {
 StatusCode GaudiDDPlanarDigiProcessor::initialize() {
   
   // initalize global marlin information, maybe betters as a _tool_
-  static bool once = true;        
-  if (once) {
-    once = false;
+
+    if (GaudiAlgorithm::initialize().isFailure()) {
+      return StatusCode::FAILURE;
+    }
     
-    // if (GaudiAlgorithm::initialize().isFailure()) {   
-    //   return StatusCode::FAILURE;                     
-    // }  
-    
-  }                                   
+  // TODO: parse parameters
+  // HINT: this is done in k4MArlinWrapper
 
 
   cout << "Hello World!\n";
@@ -105,14 +103,16 @@ StatusCode GaudiDDPlanarDigiProcessor::initialize() {
     //throw EVENT::GaudiException( ss.str() ) ; 
     // HAVE TO SEE HOW DO I WANT TO SOLVE EXCEPTIONS. See MarlinProcessorWrapper for reference
   }
-  // dd4hep::Detector& theDetector = dd4hep::Detector::getInstance();
+  dd4hep::Detector& theDetector = dd4hep::Detector::getInstance();
 
 
   // //===========  get the surface map from the SurfaceManager ================
 
-  // dd4hep::rec::SurfaceManager& surfMan = *theDetector.extension<dd4hep::rec::SurfaceManager>() ;
+  dd4hep::rec::SurfaceManager& surfMan = *theDetector.extension<dd4hep::rec::SurfaceManager>() ;
 
-  // dd4hep::DetElement det = theDetector.detector( _subDetName ) ;
+  // TODO: parse paramiters from Parameters Property
+  _subDetName = "Vertex";
+  dd4hep::DetElement det = theDetector.detector( _subDetName ) ;
 
   //_map = surfMan.map( det.name() ) ;
 
