@@ -28,6 +28,7 @@
 #include <iostream>
 #include <climits>
 #include <cfloat>
+#include <regex> // For the split function
 
 //using namespace lcio ;
 //using namespace marlin ; // The point is not to use them
@@ -37,6 +38,7 @@ using namespace std ;
 namespace edm4hep {
   class MCParticleCollection;
   class SimTrackerHitCollection;
+  class TrackerHitPlane;
   class SimCaloHit;
 }  // namespace edm4hep
 
@@ -76,20 +78,22 @@ StatusCode GaudiDDPlanarDigiProcessor::initialize() {
       return StatusCode::FAILURE;
     }
     
-  // TODO: parse parameters
-  // HINT: this is done in k4MArlinWrapper
-
-
+  // TODO: parse parameters from Parameters Property
+  //parseParameters(m_parameters, m_verbosity);
   cout << "Hello World!\n";
+  
+  // TODO: parse parameters, HINT: this is done in k4MarlinWrapper
+
   // usually a good idea to
-  //printParameters();  // NEED TO SEE WHERE THIS METHOD IS
+  //printParameters();  // HINT: this is done in k4MarlinWrapper
+
   _nRun = 0 ;
   _nEvt = 0 ;
 
   // initialize gsl random generator
   _rng = gsl_rng_alloc(gsl_rng_ranlxs2);
 
-  //_h.resize( hSize ) ;
+  //_h.resize( hSize ) ; // Needed for the HistogramFactory
 
   // TODO: 
   //Global::EVENTSEEDER->registerProcessor(this);
@@ -100,8 +104,8 @@ StatusCode GaudiDDPlanarDigiProcessor::initialize() {
     ss << name() << "::initialize() - Inconsistent number of resolutions given for U and V coordinate: " 
        << "ResolutionU  :" <<   _resU.size() << " != ResolutionV : " <<  _resV.size() ;
 
+    // TODO: how do I want to solve exceptions See MarlinProcessorWrapper for reference
     //throw EVENT::GaudiException( ss.str() ) ; 
-    // HAVE TO SEE HOW DO I WANT TO SOLVE EXCEPTIONS. See MarlinProcessorWrapper for reference
   }
   dd4hep::Detector& theDetector = dd4hep::Detector::getInstance();
 
@@ -109,18 +113,18 @@ StatusCode GaudiDDPlanarDigiProcessor::initialize() {
   // //===========  get the surface map from the SurfaceManager ================
 
   dd4hep::rec::SurfaceManager& surfMan = *theDetector.extension<dd4hep::rec::SurfaceManager>() ;
-
-  // TODO: parse paramiters from Parameters Property
-  _subDetName = "Vertex";
+  
+  //_subDetName = "Vertex";
   dd4hep::DetElement det = theDetector.detector( _subDetName ) ;
 
-  //_map = surfMan.map( det.name() ) ;
+  _map = surfMan.map( det.name() ) ;
 
-  // if( ! _map ) {   
-  //   std::stringstream err  ; err << " Could not find surface map for detector: " 
-  //                                << _subDetName << " in SurfaceManager " ;
-  //   //throw Exception( err.str() ) ;
-  // }
+  if( ! _map ) {   
+    std::stringstream err  ; err << " Could not find surface map for detector: " 
+                                 << _subDetName << " in SurfaceManager " ;
+    //throw Exception( err.str() ) ;
+  }
+
 
   // streamlog_out( DEBUG3 ) << " DDPlanarDigiProcessor::init(): found " << _map->size() 
   //                         << " surfaces for detector:" <<  _subDetName << std::endl ;
@@ -149,9 +153,6 @@ StatusCode GaudiDDPlanarDigiProcessor::initialize() {
   _h[ hv ] = new TH1F( "hv" , "smearing v" , 50, -5. , +5. );
   _h[ hT ] = new TH1F( "hT" , "smearing time" , 50, -5. , +5. );
 
-  _rng = gsl_rng_alloc(gsl_rng_ranlxs2);
-f time" , 1000, -5. , +5. );
-
   _h[ hitE ] = new TH1F( "hitE" , "hitEnergy in keV" , 1000, 0 , 200 );
   _h[ hitsAccepted ] = new TH1F( "hitsAccepted" , "Fraction of accepted hits [%]" , 201, 0 , 100.5 );
   */
@@ -166,8 +167,23 @@ f time" , 1000, -5. , +5. );
 
 
 
+
 StatusCode GaudiDDPlanarDigiProcessor::execute() {
   
+  
+  /* TODO: Global::EVENTSEEDER and streamlog_out
+  gsl_rng_set( _rng, Global::EVENTSEEDER->getSeed(this) ) ;   
+  streamlog_out( DEBUG4 ) << "seed set to " << Global::EVENTSEEDER->getSeed(this) << std::endl;
+  */
+
+  // LCCollection* STHcol = 0 ;
+  // try{
+  //   STHcol = evt->getCollection( _inColName ) ;
+  // }
+  // catch(DataNotAvailableException &e){
+  //   streamlog_out(DEBUG4) << "Collection " << _inColName.c_str() << " is unavailable in event " << _nEvt << std::endl;
+  // }
+
   return StatusCode::SUCCESS;
   
 }

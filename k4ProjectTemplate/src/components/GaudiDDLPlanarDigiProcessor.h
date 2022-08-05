@@ -36,14 +36,14 @@ namespace edm4hep {
   class SimCaloHit;
 }  // namespace edm4hep
 
-
+/*
 namespace marlin {
   class Processor;
   class StringParameters;
 }  // namespace marlin
-
+*/ 
 //using namespace lcio ;
-using namespace marlin ;
+//using namespace marlin ;
 
 namespace EVENT {
   class SimTrackerHit;
@@ -75,7 +75,29 @@ private:
   
   // ProcessorType: The Type of the DDPlanarDigiProcessor to use
   Gaudi::Property<std::string>                                     m_processorType{this, "ProcessorType", {}};
-  Gaudi::Property<std::map<std::string, std::vector<std::string>>> m_parameters{this, "Parameters", {}};
+  //Gaudi::Property<std::map<std::string, std::vector<std::string>>> m_parameters{this, "Parameters", {}};
+  
+    
+  Gaudi::Property<bool> _isStrip{this, "IsStrip", {}};
+
+  Gaudi::Property<std::vector<float>> _resU{this, "ResolutionU", {}};
+  Gaudi::Property<std::vector<float>> _resV{this, "ResolutionV", {}};
+  Gaudi::Property<std::vector<float>> _resT{this, "ResolutionT", {}};
+
+  Gaudi::Property<std::string> _subDetName{this, "SubDetectorName", {}};
+  
+  Gaudi::Property<std::string> _inColName{this, "InputCollections", {}};
+  Gaudi::Property<std::string> _outColName{this, "OutputCollection", {}};
+  //std::string _outRelColName ;
+ 
+  Gaudi::Property<bool> _forceHitsOntoSurface{this, "ForceHitsOntoSurface", {}};
+  Gaudi::Property<double> _minEnergy{this, "MinimumEnergyPerHit", {}};
+  Gaudi::Property<bool> _correctTimesForPropagation{this, "CorrectTimesForPropagation", {}};
+
+  Gaudi::Property<bool> _useTimeWindow{this, "UseTimeWindow", {}};
+  Gaudi::Property<std::vector<float>>  _timeWindow_min{this, "TimeWindowMin", {}};
+  Gaudi::Property<std::vector<float>>  _timeWindow_max{this, "TimeWindowMax", {}};
+  
 
   // Histogram variables
   IHistogram1D* m_hu1D;
@@ -89,34 +111,26 @@ private:
   IHistogram1D* m_hitE1D;
   IHistogram1D* m_hitsAccepted1D;
 
+  std::string   m_verbosity = "MESSAGE"; // Used in parseParameters
+
+  std::vector<std::string> split(const std::string& subject, const std::regex& re);
+  std::vector<std::string> split(const std::string& subject);
+  void parseParameters(
+    const std::map<std::string, std::vector<std::string>> parameters, 
+    std::string& verbosity) ;
+
+
 protected:
-  std::string _inColName ;
-  
-  std::string _outColName ;
-  std::string _outRelColName ;
- 
-  std::string _subDetName ;
-  
-  int _nRun ;
-  int _nEvt ;
-  
-  std::vector<float> _resU;
-  std::vector<float> _resV;
-  std::vector<float> _resT;
-
-  bool _isStip;
-
+  int _nRun;
+  int _nEvt;
   gsl_rng* _rng ;
-
   const dd4hep::rec::SurfaceMap* _map ;
 
-  bool _forceHitsOntoSurface  ;
-  double _minEnergy ;
+  
+  
+  
 
-  bool _useTimeWindow ;
-  bool _correctTimesForPropagation ;
-  std::vector<float> _timeWindow_min ;
-  std::vector<float> _timeWindow_max ;
+  //std::string        m_verbosity = "MESSAGE";
 
   //std::vector<TH1F*> _h ;
 
