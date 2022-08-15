@@ -115,9 +115,9 @@ private:
 
   std::vector<std::string> split(const std::string& subject, const std::regex& re);
   std::vector<std::string> split(const std::string& subject);
-  void parseParameters(
-    const std::map<std::string, std::vector<std::string>> parameters, 
-    std::string& verbosity) ;
+  // void parseParameters(
+  //   const std::map<std::string, std::vector<std::string>> parameters, 
+  //   std::string& verbosity) ;
 
 
 protected:

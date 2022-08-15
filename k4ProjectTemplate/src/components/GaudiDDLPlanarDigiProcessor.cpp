@@ -182,7 +182,135 @@ StatusCode GaudiDDPlanarDigiProcessor::execute() {
   // }
   // catch(DataNotAvailableException &e){
   //   streamlog_out(DEBUG4) << "Collection " << _inColName.c_str() << " is unavailable in event " << _nEvt << std::endl;
-  // }
+  // }LCIO::TRACKERHITPLAN
+// Have to wait
+ 
+  if( STHcol != 0 ){    
+    
+    unsigned nCreatedHits=0;
+    unsigned nDismissedHits=0;
+    
+
+    // WARNING new means unique_ptr
+    // make_unique google it
+    edm4hep::TrackerHitCollection* trkhitVec = make_unique<edm4hep::TrackerHitPlane>; // Not sure this is okey
+    //LCCollectionVec* trkhitVec = new LCCollectionVec( LCIO::TRACKERHITPLANE )  ;
+    
+    CellIDEncoder<TrackerHitPlaneImpl> cellid_encoder( lcio::LCTrackerCellID::encoding_string() , trkhitVec ) ;
+
+    // Relation collection TrackerHit, SimTrackerHit
+    auto* thsthcol  = 0; // WHAT IS THIS FOR ?????????
+    UTIL::LCRelationNavigator thitNav = UTIL::LCRelationNavigator( edm4hep::TrackerHitPlane, edm4hep::SimTrackerHit );
+    /* LCCollection* thsthcol  = 0;
+    UTIL::LCRelationNavigator thitNav = UTIL::LCRelationNavigator( LCIO::TRACKERHITPLANE, LCIO::SIMTRACKERHIT );
+    */
+    CellIDDecoder<SimTrackerHit> cellid_decoder( STHcol) ;
+
+    
+    int nSimHits = STHcol->getNumberOfElements()  ;
+    
+    // TODO
+    // streamlog_out( DEBUG4 ) << " processing collection " << _inColName  << " with " <<  nSimHits  << " hits ... " << std::endl ;
+    
+    for(int i=0; i< nSimHits; ++i){
+      
+
+
+      SimTrackerHit* simTHit = dynamic_cast<SimTrackerHit*>( STHcol->getElementAt( i ) ) ;
+
+      _h[hitE]->Fill( simTHit->getEDep() * (dd4hep::GeV / dd4hep::keV) );
+
+      if( simTHit->getEDep() < _minEnergy ) {
+        streamlog_out( DEBUG ) << "Hit with insufficient energy " << simTHit->getEDep() * (dd4hep::GeV / dd4hep::keV) << " keV" << std::endl;
+        continue;
+      }
+      
+      const int cellID0 = simTHit->getCellID0() ;
+  
+      //***********************************************************
+      // get the measurement surface for this hit using the CellID
+      //***********************************************************
+      
+      dd4hep::rec::SurfaceMap::const_iterator sI = _map->find( cellID0 ) ;
+
+      if( sI == _map->end() ){    
+
+        std::cout<< " DDPlanarDigiProcessor::processEvent(): no surface found for cellID : " 
+                 <<   cellid_decoder( simTHit ).valueString() <<std::endl;
+
+        
+        std::stringstream err ; err << " DDPlanarDigiProcessor::processEvent(): no surface found for cellID : " 
+                                    <<   cellid_decoder( simTHit ).valueString()  ;
+        throw Exception ( err.str() ) ;
+      }
+
+
+
+      const dd4hep::rec::ISurface* surf = sI->second ;
+
+
+      int layer  = cellid_decoder( simTHit )["layer"];
+
+
+
+      dd4hep::rec::Vector3D oldPos( simTHit->getPosition()[0], simTHit->getPosition()[1], simTHit->getPosition()[2] );
+      
+      dd4hep::rec::Vector3D newPos ;
+
+     //************************************************************
+      // Check if Hit is inside sensitive 
+      //************************************************************
+      
+      if ( ! surf->insideBounds( dd4hep::mm * oldPos ) ) {
+        
+        streamlog_out( DEBUG3 ) << "  hit at " << oldPos 
+                                << " " << cellid_decoder( simTHit).valueString() 
+                                << " is not on surface " 
+                                << *surf  
+                                << " distance: " << surf->distance(  dd4hep::mm * oldPos )
+                                << std::endl;        
+
+        
+        
+        
+        if( _forceHitsOntoSurface ){
+          
+          dd4hep::rec::Vector2D lv = surf->globalToLocal( dd4hep::mm * oldPos  ) ;
+          
+          dd4hep::rec::Vector3D oldPosOnSurf = (1./dd4hep::mm) * surf->localToGlobal( lv ) ; 
+          
+          streamlog_out( DEBUG3 ) << " moved to " << oldPosOnSurf << " distance " << (oldPosOnSurf-oldPos).r()
+                                  << std::endl;        
+            
+          oldPos = oldPosOnSurf ;
+
+        } else {
+
+          ++nDismissedHits;
+        
+          continue; 
+        }
+      }
+
+    } 
+    
+    
+    
+    
+    
+    
+    
+    } // end of if( STHcol != 0 )
+
+
+
+
+
+
+
+
+
+
 
   return StatusCode::SUCCESS;
   
