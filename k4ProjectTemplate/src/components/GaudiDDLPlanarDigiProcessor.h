@@ -1,7 +1,6 @@
-#ifndef TESTFWCORE_HELLOWORLDALG
-#define TESTFWCORE_HELLOWORLDALG
+#ifndef TESTFWCORE_GaudiDDLPlanarDigiProcessor
+#define TESTFWCORE_GaudiDDLPlanarDigiProcessor
 
-#pragma once
 
 // GAUDI
 #include "Gaudi/Property.h"
@@ -12,7 +11,6 @@
 #include <map>
 
 #include <gsl/gsl_rng.h>
-//#include <gsl/gsl_randist.h>
 
 #include "DDRec/Surface.h"
 #include "DDRec/SurfaceManager.h"
@@ -20,6 +18,23 @@
 #include <TH1F.h>
 
 #include "CLHEP/Vector/TwoVector.h"
+
+#include <DD4hep/BitFieldCoder.h>
+
+// k4FWCore
+#include <k4FWCore/DataHandle.h>
+#include <k4FWCore/PodioDataSvc.h>
+#include <k4Interface/IUniqueIDGenSvc.h>
+
+// edm4hep
+#include "k4FWCore/DataHandle.h"
+
+// datamodel
+#include "edm4hep/SimTrackerHitCollection.h"
+#include "edm4hep/TrackerHitPlaneCollection.h"
+#include "edm4hep/TrackerHitCollection.h"
+#include "edm4hep/MutableMCRecoTrackerHitPlaneAssociation.h"
+
 
 #include <cmath>
 #include <algorithm>
@@ -31,25 +46,15 @@
 
 // datamodel
 namespace edm4hep {
-  class MCParticleCollection;
+  class TrackerHitCollection; 
+  class TrackerHitPlaneCollection; 
+  //class MCParticleCollection;
+  class SimTrackerHit;
+  class MutableMCRecoTrackerHitPlaneAssociation;
   class SimTrackerHitCollection;
+ 
   class SimCaloHit;
 }  // namespace edm4hep
-
-/*
-namespace marlin {
-  class Processor;
-  class StringParameters;
-}  // namespace marlin
-*/ 
-//using namespace lcio ;
-//using namespace marlin ;
-
-namespace EVENT {
-  class SimTrackerHit;
-} // MMM NOT SURE WHAT IS THIS
-
-
 
 
 class GaudiDDPlanarDigiProcessor : public GaudiAlgorithm {
@@ -71,33 +76,42 @@ public:
 
 private:
   // member variable
-  // Gaudi::Property<std::string> theMessage{this, "PerEventPrintMessage", "Hello ", "The message to printed for each Event"};
   
   // ProcessorType: The Type of the DDPlanarDigiProcessor to use
-  Gaudi::Property<std::string>                                     m_processorType{this, "ProcessorType", {}};
-  //Gaudi::Property<std::map<std::string, std::vector<std::string>>> m_parameters{this, "Parameters", {}};
-  
-    
-  Gaudi::Property<bool> _isStrip{this, "IsStrip", {}};
+  Gaudi::Property<std::string> m_processorType{this, "ProcessorType", {}};
 
-  Gaudi::Property<std::vector<float>> _resU{this, "ResolutionU", {}};
-  Gaudi::Property<std::vector<float>> _resV{this, "ResolutionV", {}};
-  Gaudi::Property<std::vector<float>> _resT{this, "ResolutionT", {}};
+//GaudiDDPlannarDigiProcessor.h
+  Gaudi::Property<bool> m_isStrip{this, "IsStrip", {}};
+  Gaudi::Property<std::vector<float>> m_resU{this, "ResolutionU", {}};
 
-  Gaudi::Property<std::string> _subDetName{this, "SubDetectorName", {}};
+
+  Gaudi::Property<std::vector<float>> m_resV{this, "ResolutionV", {}};
+  Gaudi::Property<std::vector<float>> m_resT{this, "ResolutionT", {}};
+
+  Gaudi::Property<std::string> m_subDetName{this, "SubDetectorName", {}};
   
-  Gaudi::Property<std::string> _inColName{this, "InputCollections", {}};
-  Gaudi::Property<std::string> _outColName{this, "OutputCollection", {}};
+  Gaudi::Property<std::string> m_inColName{this, "InputCollections", {}};
+  Gaudi::Property<std::string> m_outColName{this, "OutputCollection", {}};
   //std::string _outRelColName ;
  
-  Gaudi::Property<bool> _forceHitsOntoSurface{this, "ForceHitsOntoSurface", {}};
-  Gaudi::Property<double> _minEnergy{this, "MinimumEnergyPerHit", {}};
-  Gaudi::Property<bool> _correctTimesForPropagation{this, "CorrectTimesForPropagation", {}};
+  Gaudi::Property<bool> m_forceHitsOntoSurface{this, "ForceHitsOntoSurface", {}};
+  Gaudi::Property<double> m_minEnergy{this, "MinimumEnergyPerHit", {}};
+  Gaudi::Property<bool> m_correctTimesForPropagation{this, "CorrectTimesForPropagation", {}};
 
-  Gaudi::Property<bool> _useTimeWindow{this, "UseTimeWindow", {}};
-  Gaudi::Property<std::vector<float>>  _timeWindow_min{this, "TimeWindowMin", {}};
-  Gaudi::Property<std::vector<float>>  _timeWindow_max{this, "TimeWindowMax", {}};
+  Gaudi::Property<bool> m_useTimeWindow{this, "UseTimeWindow", {}};
+  Gaudi::Property<std::vector<float>>  m_timeWindow_min{this, "TimeWindowMin", {}};
+  Gaudi::Property<std::vector<float>>  m_timeWindow_max{this, "TimeWindowMax", {}};
+  // TODO: set default values
+  // TODO: allow user to give the collection name of the algorithm 25th Aug
+  SmartIF<IUniqueIDGenSvc> m_uniqueIDService;
   
+  // PODIO data service
+  ServiceHandle<IDataProviderSvc> m_eventDataSvc;
+
+  // GaudiDDLPlanarDigiProcessor.h
+  PodioDataSvc* m_podioDataSvc;
+
+  dd4hep::DDSegmentation::BitFieldCoder bitFieldCoder;
 
   // Histogram variables
   IHistogram1D* m_hu1D;
@@ -111,14 +125,16 @@ private:
   IHistogram1D* m_hitE1D;
   IHistogram1D* m_hitsAccepted1D;
 
-  std::string   m_verbosity = "MESSAGE"; // Used in parseParameters
 
-  std::vector<std::string> split(const std::string& subject, const std::regex& re);
-  std::vector<std::string> split(const std::string& subject);
-  // void parseParameters(
-  //   const std::map<std::string, std::vector<std::string>> parameters, 
-  //   std::string& verbosity) ;
 
+  //DataHandle<edm4hep::EventHeaderCollection> m_eventHeaderHandle{}
+  // Handle for the SimTrackerHits to be written
+  
+DataHandle<edm4hep::SimTrackerHitCollection> m_generalSimTrackerHitHandle{"VertexBarrelCollection", Gaudi::DataHandle::Reader, this}; // sth_coll
+  //DataHandle<edm4hep::SimTrackerHitCollection> m_simTrackerHitHandle{"SimTrackerHits", Gaudi::DataHandle::Reader, this};
+  DataHandle<edm4hep::TrackerHitPlaneCollection> m_TrackerHitHandle{"VXDTrackerHits", Gaudi::DataHandle::Writer, this};
+  //DataHandle<edm4hep::TrackerHitCollection> m_SimTrackerHitAssociation{"SimTrackerHits", Gaudi::DataHandle::Writer, this}; // Output association 
+  DataHandle<edm4hep::TrackerHitCollection> m_OutTrackerHitColl{"OutputTrackerHitColl", Gaudi::DataHandle::Writer, this}; // Output trackerhitcoll
 
 protected:
   int _nRun;
@@ -127,10 +143,6 @@ protected:
   const dd4hep::rec::SurfaceMap* _map ;
 
   
-  
-  
-
-  //std::string        m_verbosity = "MESSAGE";
 
   //std::vector<TH1F*> _h ;
 
