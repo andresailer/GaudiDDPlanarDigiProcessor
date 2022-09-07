@@ -79,17 +79,6 @@ StatusCode GaudiDDPlanarDigiProcessor::initialize() {
   _nRun = 0 ;
   _nEvt = 0 ;
 
-  // TODO: initialize gsl random generator
-  _rng = gsl_rng_alloc(gsl_rng_ranlxs2);
-
-  // TODO: 
-  //Global::EVENTSEEDER->registerProcessor(this);
-  // GaudiDDLPlanarDigiProcessor.
-  m_uniqueIDService = serviceLocator()->service("UniqueIDGenSvc");
-
-  // From Global::EVENTSEEDER->registerProcessor(this);
-  // DDLPlanarDigiProcessor.cpp
-  // To 
   m_uniqueIDService = serviceLocator()->service("UniqueIDGenSvc");
   m_uniqueIDService->getUniqueID(1, 2, name());
 
@@ -103,17 +92,17 @@ StatusCode GaudiDDPlanarDigiProcessor::initialize() {
     ss << name() << "::initialize() - Inconsistent number of resolutions given for U and V coordinate: " 
        << "ResolutionU  :" <<   m_resU.size() << " != ResolutionV : " <<  m_resV.size() ;
 
-    // TODO: how do I want to solve exceptions See MarlinProcessorWrapper for reference
-    //throw EVENT::GaudiException( ss.str() ) ; 
+    // TODO: check correct way to throw the exception in Gaudi
+    // std::string msg("Error");
+    throw GaudiException("Error", name()  + ":initialize() - Inconsistent number of resolutions given for U and V coordinate: ", StatusCode::FAILURE);
   }
   dd4hep::Detector& theDetector = dd4hep::Detector::getInstance();
 
 
-  // //===========  get the surface map from the SurfaceManager ================
+  // ==============  get the surface map from the SurfaceManager ================
 
   dd4hep::rec::SurfaceManager& surfMan = *theDetector.extension<dd4hep::rec::SurfaceManager>() ;
   
-  //m_subDetName = "Vertex";
   dd4hep::DetElement det = theDetector.detector( m_subDetName ) ;
 
   _map = surfMan.map( det.name() ) ;
@@ -121,21 +110,20 @@ StatusCode GaudiDDPlanarDigiProcessor::initialize() {
   if( ! _map ) {   
     std::stringstream err  ; err << " Could not find surface map for detector: " 
                                  << m_subDetName << " in SurfaceManager " ;
-    //throw Exception( err.str() ) ;
+    
+    throw GaudiException("Error", "Could not find surface map for detector.", StatusCode::FAILURE);
   }
 
 
-  // streamlog_out( DEBUG3 ) << " DDPlanarDigiProcessor::init(): found " << _map->size() 
-  //                         << " surfaces for detector:" <<  m_subDetName << std::endl ;
+  std::cout << " DDPlanarDigiProcessor::init(): found " << _map->size() 
+            << " surfaces for detector:" <<  m_subDetName << std::endl ;
 
-  // streamlog_out( MESSAGE ) << " *** DDPlanarDigiProcessor::init(): creating histograms" << std::endl ;
+  std::cout << " *** DDPlanarDigiProcessor::init(): creating histograms" << std::endl ;
 
   cout << " DDPlanarDigiProcessor::init(): found " << _map->size() << " surfaces for detector:" <<  m_subDetName << std::endl ;
   cout << " *** DDPlanarDigiProcessor::init(): creating histograms" << std::endl ;
-  
-  //AIDAProcessor::histogramFactory(this) ; //->createHistogram1D( "hMCPEnergy", "energy of the MCParticles", 100 ) ;
 
-  // Book 1D histogram with fixed and variable binning
+  // ============== Book 1D histogram with fixed and variable binning ==============
   m_hu1D    = histoSvc()->book( "hu" , "smearing u" , 50, -5. , +5. );
   m_hv1D    = histoSvc()->book( "hv" , "smearing v" , 50, -5. , +5. );
   m_hT1D    = histoSvc()->book( "hT" , "smearing time" , 50, -5. , +5. );
@@ -147,14 +135,6 @@ StatusCode GaudiDDPlanarDigiProcessor::initialize() {
   m_hitE1D    = histoSvc()->book( "hitE" , "hitEnergy in keV" , 1000, 0 , 200 );
   m_hitsAccepted1D    = histoSvc()->book( "hitsAccepted" , "Fraction of accepted hits [%]" , 201, 0 , 100.5 );
 
-  /*
-  _h[ hu ] = new TH1F( "hu" , "smearing u" , 50, -5. , +5. );
-  _h[ hv ] = new TH1F( "hv" , "smearing v" , 50, -5. , +5. );
-  _h[ hT ] = new TH1F( "hT" , "smearing time" , 50, -5. , +5. );
-
-  _h[ hitE ] = new TH1F( "hitE" , "hitEnergy in keV" , 1000, 0 , 200 );
-  _h[ hitsAccepted ] = new TH1F( "hitsAccepted" , "Fraction of accepted hits [%]" , 201, 0 , 100.5 );
-  */
   if ( 0 == m_hu1D || 0 == m_hv1D || 0 == m_hT1D || 0 == m_diffu1D || 0 == m_diffv1D || 0 == m_diffT1D || 0 == m_hitE1D ||
        0 == m_hitsAccepted1D ) {
     error() << "----- Cannot book or register histograms -----" << endmsg;
@@ -163,43 +143,39 @@ StatusCode GaudiDDPlanarDigiProcessor::initialize() {
   info() << "Finished booking Histograms" << endmsg;
   return StatusCode::SUCCESS;
 }
-// TODO: genereador lo voy a declarar e inicializar en el execute gsl
 
-
+// "SimTrackerHit.position.x  - TrackerHit.position.x" 
 
 
 
 StatusCode GaudiDDPlanarDigiProcessor::execute() {
-  
-  /* TODO: Global::EVENTSEEDER and streamlog_out */
-  m_uniqueIDService->getUniqueID(1, 2, name());
-  // TODO: revisar que estoy haciendo el random f=gsl_rng_set
 
+  // ============== Initialize and set gsl random generator ==============
+  _rng = gsl_rng_alloc(gsl_rng_ranlxs2);
+  gsl_rng_set( _rng, m_uniqueIDService->getUniqueID(1, 2, name())) ;  
   cout << "seed set to " << m_uniqueIDService->getUniqueID(1, 2, name()) << std::endl;
-  
+
+
+  m_uniqueIDService->getUniqueID(1, 2, name());
+
   // TODO/FIXME: check for failure?
-  const auto sth_coll = m_generalSimTrackerHitHandle.get(); // READER, analogous to STHcol
-
-  std::string cellIDEncodingString = m_generalSimTrackerHitHandle.getCollMetadataCellID(sth_coll->getID());
-
-
-  // EventHeaderCollection* STHcol = 0 ;
-  // try{
-  //   STHcol =  evt->getCollection( m_inColName ) ;
-  // }
-  // catch(DataNotAvailableException &e){
-  //   streamlog_out(DEBUG4) << "Collection " << m_inColName.c_str() << " is unavailable in event " << _nEvt << std::endl;
-  // }
-  // Have to wait
-    
+  const auto& sth_coll = 0;
+  try {
+    const auto sth_coll = m_generalSimTrackerHitHandle.get(); // READER, analogous to STHcol
+  }
+  catch(GaudiException e) {
+    std::cout << "Collection " << m_inColName.toString() << " is unavailable in event " << _nEvt << std::endl;
+  }
+  
   unsigned nCreatedHits=0;
   unsigned nDismissedHits=0;
     
 
   // set the CellIDEncodingString MetaData parameter
   edm4hep::TrackerHitPlaneCollection* trkhitVec = m_TrackerHitHandle.createAndPut();
-
   std::cout << trkhitVec->getID() << std::endl;
+
+  std::string cellIDEncodingString = m_generalSimTrackerHitHandle.getCollMetadataCellID(sth_coll->getID());
   auto& collmd = m_podioDataSvc->getProvider().getCollectionMetaData(trkhitVec->getID()); // I believe its sth_coll
  
   collmd.setValue("CellIDEncodingString", cellIDEncodingString); // encoding
@@ -218,7 +194,6 @@ StatusCode GaudiDDPlanarDigiProcessor::execute() {
   
   int nSimHits = sth_coll->size();
 
-  // TODO
   std::cout << " processing collection " << m_inColName  << " with " <<  nSimHits  << " hits ... " << std::endl ;
   
   for(int i=0; i< nSimHits; ++i) {
@@ -253,6 +228,7 @@ StatusCode GaudiDDPlanarDigiProcessor::execute() {
                                   <<   bitFieldCoder.valueString(cellID0)  ;
       throw std::logic_error ( err.str() ) ;
     }
+    
 
     // bitifeld for the BitFIeldEncoder: cellID0
 
@@ -524,6 +500,7 @@ StatusCode GaudiDDPlanarDigiProcessor::execute() {
 
     _nEvt ++ ;
 
+    gsl_rng_free( _rng );
   
     return StatusCode::SUCCESS;
   
@@ -532,7 +509,7 @@ StatusCode GaudiDDPlanarDigiProcessor::execute() {
 
 StatusCode GaudiDDPlanarDigiProcessor::finalize() { 
     
-    gsl_rng_free( _rng );
+    // gsl_rng_free( _rng );
   
     std::cout << " end()  " << name() 
     << " processed " << _nEvt << " events in " << _nRun << " runs "
